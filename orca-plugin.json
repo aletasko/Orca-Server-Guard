@@ -1,9 +1,9 @@
 {
   "manifestVersion": 1,
-  "id": "orca-server-guard",
+  "id": "server-guard",
   "publisher": "aletasko",
   "name": "Orca Server Guard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Avvia controlli e riavvii verificati del server Orca da una shell selezionata.",
   "engines": { "orca": ">=1.4.212" },
   "pluginApi": 1,
