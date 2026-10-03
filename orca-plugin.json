@@ -1,0 +1,19 @@
+{
+  "manifestVersion": 1,
+  "id": "orca-server-guard",
+  "publisher": "aletasko",
+  "name": "Orca Server Guard",
+  "version": "0.1.0",
+  "description": "Avvia controlli e riavvii verificati del server Orca da una shell selezionata.",
+  "engines": { "orca": ">=1.4.212" },
+  "pluginApi": 1,
+  "contributes": {
+    "panels": [
+      { "id": "server-guard", "title": "Orca Server Guard", "icon": "shield-check", "entry": "panel.html" }
+    ]
+  },
+  "capabilities": [
+    { "kind": "workspace:read" },
+    { "kind": "terminal:send" }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Orca Server Guard",
+  "owner": "aletasko",
+  "plugins": [
+    {
+      "id": "aletasko.orca-server-guard",
+      "source": {
+        "kind": "git",
+        "url": "https://github.com/aletasko/Orca-Server-Guard.git",
+        "ref": "main"
+      },
+      "description": "Controllo e riavvio verificato del server Orca su contabo1.",
+      "categories": ["developer-tools"]
+    }
+  ]
+}

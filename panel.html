@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Orca Server Guard</title>
+    <style>
+      body { margin: 0; padding: 16px; font: 13px/1.5 system-ui, sans-serif; color: var(--foreground, #ddd); background: var(--background, #171717); }
+      h1 { margin: 0 0 8px; font-size: 16px; }
+      p { margin: 8px 0; }
+      label { display: block; margin: 16px 0 5px; font-weight: 600; }
+      select, button { color: inherit; background: var(--secondary, #303030); border: 1px solid var(--border, #555); border-radius: 6px; padding: 7px 9px; font: inherit; }
+      select { width: 100%; }
+      .actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .5; }
+      #status { white-space: pre-wrap; color: var(--muted-foreground, #aaa); }
+    </style>
+  </head>
+  <body>
+    <h1>Orca Server Guard</h1>
+    <p>Apri una nuova scheda <strong>shell</strong> su contabo1, premi Aggiorna schede e seleziona il suo ID. I comandi scrivono l'esito in quella scheda.</p>
+    <button id="refresh">Aggiorna schede</button>
+    <label for="terminals">Scheda di destinazione</label>
+    <select id="terminals"></select>
+    <div class="actions">
+      <button id="check" disabled>Verifica</button>
+      <button id="restart" disabled>Riavvia e confronta</button>
+      <button id="result" disabled>Ultimo esito</button>
+    </div>
+    <p id="status" role="status">Caricamento…</p>
+    <script>
+      'use strict'
+      const script = '/home/orca/.local/share/orca-fix-demone/orca-server-guard.sh'
+      const select = document.getElementById('terminals')
+      const status = document.getElementById('status')
+      const buttons = ['check', 'restart', 'result'].map(id => document.getElementById(id))
+      const pending = new Map()
+      let sequence = 0
+
+      function call(action, params) {
+        return new Promise(resolve => {
+          const requestId = 'guard-' + ++sequence
+          pending.set(requestId, resolve)
+          window.parent.postMessage({ type: 'orca-panel-action', requestId, action, params }, '*')
+        })
+      }
+
+      window.addEventListener('message', event => {
+        const data = event.data
+        if (!data || data.type !== 'orca-panel-action-result') return
+        const resolve = pending.get(data.requestId)
+        if (!resolve) return
+        pending.delete(data.requestId)
+        resolve(data)
+      })
+
+      async function refresh() {
+        buttons.forEach(button => button.disabled = true)
+        status.textContent = 'Lettura delle schede…'
+        const result = await call('workspace.readContext', {})
+        select.replaceChildren()
+        if (!result.ok || !result.value) {
+          status.textContent = result.ok ? 'Apri un worktree sul server.' : 'Errore: ' + (result.error || result.errorCode)
+          return
+        }
+        for (const terminal of result.value.terminals) {
+          const option = document.createElement('option')
+          option.value = terminal.id
+          option.textContent = terminal.id
+          select.appendChild(option)
+        }
+        buttons.forEach(button => button.disabled = !select.value)
+        status.textContent = select.value
+          ? 'Scegli una shell. Orca espone solo gli ID delle schede: verifica la destinazione prima di inviare.'
+          : 'Nessuna scheda nel worktree selezionato.'
+      }
+
+      async function send(command) {
+        if (!select.value) return
+        const result = await call('terminal.sendText', {
+          terminalId: select.value,
+          text: script + ' ' + command,
+          enter: true
+        })
+        status.textContent = result.ok && result.value?.accepted
+          ? 'Comando inviato. Leggi l’esito nella scheda selezionata.'
+          : 'Invio non riuscito: ' + (result.error || result.errorCode || 'non accettato')
+      }
+
+      document.getElementById('refresh').addEventListener('click', refresh)
+      document.getElementById('check').addEventListener('click', () => send('check'))
+      document.getElementById('result').addEventListener('click', () => send('result'))
+      document.getElementById('restart').addEventListener('click', () => {
+        if (confirm('Riavviare orca-serve su contabo1 dopo il controllo di sicurezza?')) send('restart')
+      })
+      refresh()
+    </script>
+  </body>
+</html>
