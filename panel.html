@@ -38,7 +38,7 @@
     <script>
       'use strict'
       const script = '/home/orca/.local/share/orca-server-guard/guard.sh'
-      const install = "bash -c 'set -euo pipefail; temp=$(mktemp -d); trap \"rm -r -- \\\"$temp\\\"\" EXIT; git clone --quiet --depth 1 --branch v0.2.1 https://github.com/aletasko/Orca-Server-Guard.git \"$temp\"; bash \"$temp/install-server.sh\" --migrate-legacy'"
+      const install = "bash -c 'set -euo pipefail; temp=$(mktemp -d); trap \"rm -r -- \\\"$temp\\\"\" EXIT; git clone --quiet --depth 1 --branch v0.2.2 https://github.com/aletasko/Orca-Server-Guard.git \"$temp\"; bash \"$temp/install-server.sh\" --migrate-legacy'"
       const select = document.getElementById('terminals')
       const status = document.getElementById('status')
       const confirmation = document.getElementById('confirmation')

@@ -17,7 +17,7 @@ repository, installati dal pulsante **Installa protezione** e conservati in
 In Orca apri **Settings → Plugins → Install plugin → Git URL** e inserisci:
 
 ```text
-https://github.com/aletasko/Orca-Server-Guard.git#v0.2.1
+https://github.com/aletasko/Orca-Server-Guard.git#v0.2.2
 ```
 
 Approva le capacità richieste. Apri il pannello **Orca Server Guard** in un
@@ -27,13 +27,14 @@ pannello non può riconoscere una shell o leggere l'output. Controlla la scheda
 scelta prima di inviare comandi.
 
 Premi **Installa protezione** e leggi l'esito nella shell. Il pulsante scarica
-la versione `v0.2.1` del repository e installa i componenti sul server. Se il
+la versione `v0.2.2` del repository e installa i componenti sul server. Se il
 vecchio shim verificato è presente in `~/.local/bin/systemd-run`, l'installer
 lo sposta in `~/.local/share/orca-server-guard/legacy-systemd-run.disabled`;
 da quel momento il servizio userà lo shim del plugin al prossimo avvio.
 
 Premi **Verifica** prima di **Riavvia e confronta**. Il controllo richiede che
-il demone corrente sia già in uno scope separato. Il riavvio registra il
+il demone corrente sia già in uno scope separato. Il riavvio richiede almeno
+1 GiB di spazio libero, poi registra il
 confronto di schede e processi Claude in
 `~/.local/share/orca-server-guard/restarts/<data>/result.log`.
 **Ultimo esito** stampa il log nella shell scelta.

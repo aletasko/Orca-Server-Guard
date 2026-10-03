@@ -60,7 +60,12 @@ check() {
 
 restart() {
   check
-  local run stamp pid
+  local run stamp pid available_kib
+  available_kib=$(df -Pk "$KIT" | awk 'NR == 2 { print $4 }')
+  if [[ ! $available_kib =~ ^[0-9]+$ || $available_kib -lt 1048576 ]]; then
+    echo "Spazio insufficiente per un riavvio verificato: ${available_kib:-sconosciuto} KiB liberi, minimo 1048576 KiB" >&2
+    return 1
+  fi
   stamp=$(date +%Y%m%d-%H%M%S)
   run=$KIT/restarts/$stamp
   mkdir -m 700 -p "$run"
