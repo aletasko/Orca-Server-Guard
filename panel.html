@@ -19,11 +19,12 @@
   </head>
   <body>
     <h1>Orca Server Guard</h1>
-    <p>Apri una nuova scheda <strong>shell</strong> su contabo1, premi Aggiorna schede e seleziona il suo ID. I comandi scrivono l'esito in quella scheda.</p>
+    <p>Apri una nuova scheda <strong>shell</strong> su contabo1, premi Aggiorna schede e seleziona il suo ID. Il plugin installa sul server i componenti persistenti necessari a proteggere il demone.</p>
     <button id="refresh">Aggiorna schede</button>
     <label for="terminals">Scheda di destinazione</label>
     <select id="terminals"></select>
     <div class="actions">
+      <button id="activate" disabled>Installa protezione</button>
       <button id="check" disabled>Verifica</button>
       <button id="restart" disabled>Riavvia e confronta</button>
       <button id="result" disabled>Ultimo esito</button>
@@ -31,10 +32,11 @@
     <p id="status" role="status">Caricamento…</p>
     <script>
       'use strict'
-      const script = '/home/orca/.local/share/orca-fix-demone/orca-server-guard.sh'
+      const script = '/home/orca/.local/share/orca-server-guard/guard.sh'
+      const install = "bash -c 'set -euo pipefail; temp=$(mktemp -d); trap \"rm -r -- \\\"$temp\\\"\" EXIT; git clone --quiet --depth 1 --branch v0.2.0 https://github.com/aletasko/Orca-Server-Guard.git \"$temp\"; bash \"$temp/install-server.sh\" --migrate-legacy'"
       const select = document.getElementById('terminals')
       const status = document.getElementById('status')
-      const buttons = ['check', 'restart', 'result'].map(id => document.getElementById(id))
+      const buttons = ['activate', 'check', 'restart', 'result'].map(id => document.getElementById(id))
       const pending = new Map()
       let sequence = 0
 
@@ -76,11 +78,11 @@
           : 'Nessuna scheda nel worktree selezionato.'
       }
 
-      async function send(command) {
+      async function send(command, direct = false) {
         if (!select.value) return
         const result = await call('terminal.sendText', {
           terminalId: select.value,
-          text: script + ' ' + command,
+          text: direct ? command : script + ' ' + command,
           enter: true
         })
         status.textContent = result.ok && result.value?.accepted
@@ -89,6 +91,9 @@
       }
 
       document.getElementById('refresh').addEventListener('click', refresh)
+      document.getElementById('activate').addEventListener('click', () => {
+        if (confirm('Installare la protezione del plugin su contabo1 e disattivare il vecchio shim verificato?')) send(install, true)
+      })
       document.getElementById('check').addEventListener('click', () => send('check'))
       document.getElementById('result').addEventListener('click', () => send('result'))
       document.getElementById('restart').addEventListener('click', () => {

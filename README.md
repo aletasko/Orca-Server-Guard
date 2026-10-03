@@ -1,40 +1,56 @@
 # Orca Server Guard
 
-Plugin locale basato sull'esempio ufficiale `hello-orca`. Il pannello invia
-`check`, `restart` o `result` a una scheda shell scelta dall'utente. Usa solo
-le capacità `workspace:read` e `terminal:send` dell'API plugin v1.
+Plugin per contabo1. Il pannello installa e gestisce i propri componenti sul
+server attraverso una scheda shell selezionata dall'utente. Usa le capacità
+`workspace:read` e `terminal:send` dell'API plugin v1.
 
-Il correttivo che protegge il demone è `/home/orca/.local/bin/systemd-run`.
-Questo plugin non sostituisce quel file né può intervenire mentre Orca è spento.
-Lo script sul server controlla che il demone sia già in uno scope separato prima
-di avviare un riavvio. Il worker di riavvio gira in una unità systemd separata,
-così può confrontare le schede e i PID Claude anche se la connessione si interrompe.
+Orca esegue il pannello sul client. Quando `orca-serve` è spento il pannello
+non può agire: per conservare il demone durante un riavvio servono uno shim
+`systemd-run` e uno script persistenti **sul server**. Sono inclusi nel
+repository, installati dal pulsante **Installa protezione** e conservati in
+`/home/orca/.local/share/orca-server-guard/`. L'installer aggiunge al servizio
+`orca-serve` un drop-in systemd che mette lo shim del plugin all'inizio del
+`PATH`; non cambia il binario Orca e non riavvia il servizio.
 
-## Installazione su contabo1
+## Installazione
 
-```sh
-install -m 755 server-guard.sh /home/orca/.local/share/orca-fix-demone/orca-server-guard.sh
-/home/orca/.local/share/orca-fix-demone/orca-server-guard.sh check
+In Orca apri **Settings → Plugins → Install plugin → Git URL** e inserisci:
+
+```text
+https://github.com/aletasko/Orca-Server-Guard.git#v0.2.0
 ```
 
-Nel client Orca, aprire **Settings → Plugins → Install plugin → Git URL** e
-inserire `https://github.com/aletasko/Orca-Server-Guard.git#main`.
-Il repository è pubblico. Approvare le due capacità richieste.
-Il pannello
-opera su una shell nel worktree selezionato: scegliere una scheda shell su
-contabo1, mai una chat agente. Orca espone al plugin solo gli ID dei terminali;
-il pannello non può riconoscere il tipo di terminale o leggere l'output.
+Approva le capacità richieste. Apri il pannello **Orca Server Guard** in un
+worktree su contabo1, crea una scheda **shell** dedicata, premi **Aggiorna
+schede** e selezionala. Orca espone al plugin solo gli ID dei terminali: il
+pannello non può riconoscere una shell o leggere l'output. Controlla la scheda
+scelta prima di inviare comandi.
 
-Nella versione Orca 1.4.212, l'installazione da Git copia una revisione del
-repository. Dopo un nuovo push su `main`, ripetere l'installazione dallo stesso
-Git URL per aggiornare il plugin. Orca non applica automaticamente i nuovi commit.
+Premi **Installa protezione** e leggi l'esito nella shell. Il pulsante scarica
+la versione `v0.2.0` del repository e installa i componenti sul server. Se il
+vecchio shim verificato è presente in `~/.local/bin/systemd-run`, l'installer
+lo sposta in `~/.local/share/orca-server-guard/legacy-systemd-run.disabled`;
+da quel momento il servizio userà lo shim del plugin al prossimo avvio.
 
-Il comando `restart` registra l'esito in
-`~/.local/share/orca-fix-demone/restarts/<data>/result.log`; `result` stampa
-l'ultimo esito. Le prove già fatte mostrano che un riavvio conserva le sessioni
-del demone attuale. Dopo un aggiornamento va verificato anche il primo avvio di
-un demone nuovo: l'API plugin non garantisce compatibilità tra versioni.
+Premi **Verifica** prima di **Riavvia e confronta**. Il controllo richiede che
+il demone corrente sia già in uno scope separato. Il riavvio registra il
+confronto di schede e processi Claude in
+`~/.local/share/orca-server-guard/restarts/<data>/result.log`.
+**Ultimo esito** stampa il log nella shell scelta.
 
-Per togliere il correttivo systemd usare
-`~/.local/share/orca-fix-demone/annulla.sh`. Disinstallare il plugin dal client
-non modifica il server.
+I futuri commit non aggiornano automaticamente il plugin installato da Git:
+reinstalla dal nuovo tag per aggiornare il pannello, poi premi di nuovo
+**Installa protezione** per aggiornare i componenti sul server.
+
+## Ripristino
+
+Se occorre tornare al vecchio shim, esegui sul server:
+
+```sh
+bash /home/orca/.local/share/orca-server-guard/restore-legacy.sh
+```
+
+Il ripristino non riavvia il servizio. Disinstallare il plugin dal client non
+rimuove i componenti sul server, perché devono restare disponibili durante
+un riavvio. Il primo avvio di un **nuovo** demone dopo un aggiornamento Orca
+resta da verificare senza interrompere le sessioni esistenti.

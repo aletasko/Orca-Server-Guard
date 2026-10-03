@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KIT=/home/orca/.local/share/orca-fix-demone
+KIT=/home/orca/.local/share/orca-server-guard
 CLI=/home/orca/.local/bin/orca-ide
-SELF=$KIT/orca-server-guard.sh
+SELF=$KIT/guard.sh
+SHIM=$KIT/bin/systemd-run
 SERVICE=orca-serve.service
 
 as_orca() {
@@ -29,10 +30,14 @@ check() {
   state=$(systemctl is-active "$SERVICE")
   [[ $state == active ]] || { echo "Servizio non attivo: $state" >&2; return 1; }
   [[ -x $CLI ]] || { echo "CLI assente: $CLI" >&2; return 1; }
-  [[ -x /home/orca/.local/bin/systemd-run ]] || { echo 'Correttivo systemd-run assente' >&2; return 1; }
-  cmp -s /home/orca/.local/bin/systemd-run "$KIT/systemd-run" || { echo 'Correttivo systemd-run diverso dalla copia verificata' >&2; return 1; }
+  [[ -x $SHIM ]] || { echo "Correttivo del plugin assente: $SHIM" >&2; return 1; }
   path=$(systemctl show "$SERVICE" -p Environment --value)
-  [[ $path == *'PATH=/home/orca/.local/bin:'* ]] || { echo 'Il servizio non cerca il correttivo nel PATH' >&2; return 1; }
+  [[ $path == *"PATH=$KIT/bin:"* ]] || { echo 'Il servizio non cerca il correttivo del plugin nel PATH' >&2; return 1; }
+  env XDG_RUNTIME_DIR="/run/user/$(id -u orca)" DBUS_SESSION_BUS_ADDRESS=disabled: \
+    "$SHIM" --user --scope /bin/true >/dev/null || {
+      echo 'Il correttivo del plugin non riesce a creare uno scope utente' >&2
+      return 1
+    }
   pid=$(daemon_pid)
   scope=$(<"/proc/$pid/cgroup")
   [[ $scope != *"$SERVICE"* ]] || { echo "Demone dentro $SERVICE: riavvio bloccato" >&2; return 1; }
@@ -41,6 +46,12 @@ check() {
   terminal_json=$(as_orca terminal list --json)
   count=$(python3 -c 'import json,sys; j=json.load(sys.stdin); assert j["ok"]; print(len(j["result"]["terminals"]))' <<<"$terminal_json")
   echo "Servizio: $state, PID $(systemctl show "$SERVICE" -p MainPID --value)"
+  local current_path current_pid
+  current_pid=$(systemctl show "$SERVICE" -p MainPID --value)
+  current_path=$(tr '\0' '\n' <"/proc/$current_pid/environ" | sed -n 's/^PATH=//p')
+  if [[ $current_path != "$KIT/bin:"* ]]; then
+    echo 'Il processo del servizio userà il PATH del plugin dal prossimo riavvio.'
+  fi
   echo "Demone: PID $pid, $scope"
   echo "Schede raggiungibili: $count"
   echo "Processi Claude: $(pgrep -u orca -x claude | wc -l || true)"
@@ -86,6 +97,7 @@ worker() {
   sleep 5
   as_orca terminal list --json >"$run/after.json"
   pgrep -u orca -x claude >"$run/claude-after.txt" || true
+  systemctl show "$SERVICE" -p MainPID --value >"$run/server-pid-after.txt"
   python3 - "$run" <<'PY'
 import json, pathlib, sys
 run = pathlib.Path(sys.argv[1])
@@ -101,12 +113,17 @@ lost_claude = sorted(old_claude - new_claude)
 daemon_pid = (run / 'daemon-pid.txt').read_text().strip()
 daemon_alive = pathlib.Path('/proc', daemon_pid).exists()
 daemon_scope = pathlib.Path('/proc', daemon_pid, 'cgroup').read_text().strip() if daemon_alive else ''
+server_pid = (run / 'server-pid-after.txt').read_text().strip()
+server_env = pathlib.Path('/proc', server_pid, 'environ').read_bytes().split(b'\0')
+server_path = next((v[5:].decode() for v in server_env if v.startswith(b'PATH=')), '')
+plugin_path_active = server_path.startswith('/home/orca/.local/share/orca-server-guard/bin:')
 print(f'Schede: {len(before_ids)} prima, {len(after_ids)} dopo; mancanti: {len(missing)}; non connesse: {len(disconnected)}')
 print(f'Claude: {len(old_claude)} prima, {len(new_claude)} dopo; PID persi: {len(lost_claude)}')
 print(f'Demone originale: {daemon_pid}; vivo: {daemon_alive}; cgroup: {daemon_scope}')
+print(f'Servizio nuovo: {server_pid}; PATH del plugin attivo: {plugin_path_active}')
 for label, values in [('Schede mancanti', missing), ('Schede non connesse', disconnected), ('Claude persi', lost_claude)]:
     if values: print(label + ': ' + ', '.join(values))
-if missing or disconnected or lost_claude or not daemon_alive or 'orca-serve.service' in daemon_scope:
+if missing or disconnected or lost_claude or not daemon_alive or 'orca-serve.service' in daemon_scope or not plugin_path_active:
     print('ESITO: FALLITO')
     sys.exit(1)
 print('ESITO: OK')

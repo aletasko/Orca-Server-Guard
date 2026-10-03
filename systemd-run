@@ -1,0 +1,6 @@
+#!/bin/sh
+# Orca Server Guard managed shim. Required before orca-serve starts a new terminal daemon.
+if [ "${DBUS_SESSION_BUS_ADDRESS:-}" = 'disabled:' ]; then
+  unset DBUS_SESSION_BUS_ADDRESS
+fi
+exec /usr/bin/systemd-run "$@"

@@ -3,8 +3,8 @@
   "id": "server-guard",
   "publisher": "aletasko",
   "name": "Orca Server Guard",
-  "version": "0.1.1",
-  "description": "Avvia controlli e riavvii verificati del server Orca da una shell selezionata.",
+  "version": "0.2.0",
+  "description": "Installa la protezione del demone e verifica i riavvii del server Orca da una shell selezionata.",
   "engines": { "orca": ">=1.4.212" },
   "pluginApi": 1,
   "contributes": {
